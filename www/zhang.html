@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INBODY健康评估报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            color: #2c7873;
+            text-align: center;
+        }
+        .form-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #2c7873;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #245d57;
+        }
+        .report-container {
+            display: none;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .metrics {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        .metric {
+            text-align: center;
+            padding: 10px;
+            background-color: #f0f9f8;
+            border-radius: 5px;
+            width: 45%;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c7873;
+        }
+        .recommendations h3 {
+            color: #2c7873;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .recommendations ul {
+            padding-left: 20px;
+        }
+        .recommendations li {
+            margin-bottom: 8px;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+            font-weight: bold;
+            color: #2c7873;
+        }
+    </style>
+</head>
+<body>
+    <h1>INBODY健康评估报告</h1>
+
+    <div class="form-container">
+        <div class="form-group">
+            <label for="height">身高(cm)</label>
+            <input type="number" id="height" required>
+        </div>
+        <div class="form-group">
+            <label for="weight">体重(kg)</label>
+            <input type="number" id="weight" required>
+        </div>
+        <div class="form-group">
+            <label for="chest">胸围(cm)</label>
+            <input type="number" id="chest" required>
+        </div>
+        <div class="form-group">
+            <label for="waist">腰围(cm)</label>
+            <input type="number" id="waist" required>
+        </div>
+        <div class="form-group">
+            <label for="hip">臀围(cm)</label>
+            <input type="number" id="hip" required>
+        </div>
+        <div class="form-group">
+            <label for="age">年龄</label>
+            <input type="number" id="age" required>
+        </div>
+        <button id="evaluate-btn">评估</button>
+    </div>
+
+    <div id="loading">正在生成报告，请稍候...</div>
+
+    <div class="report-container" id="report">
+        <h2>您的健康评估报告</h2>
+
+        <div class="chart-container">
+            <canvas id="radarChart"></canvas>
+        </div>
+
+        <div class="metrics">
+            <div class="metric">
+                <div>BMI指数</div>
+                <div class="metric-value" id="bmi-value">0</div>
+                <div id="bmi-category">正常</div>
+            </div>
+            <div class="metric">
+                <div>腰臀比</div>
+                <div class="metric-value" id="whr-value">0</div>
+                <div id="whr-category">正常</div>
+            </div>
+        </div>
+
+        <div class="recommendations">
+            <h3>运动建议</h3>
+            <ul id="exercise-recommendations">
+                <!-- 动态生成 -->
+            </ul>
+
+            <h3>饮食建议</h3>
+            <ul id="diet-recommendations">
+                <!-- 动态生成 -->
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 预加载和优化
+        const reportElements = {
+            bmiValue: document.getElementById('bmi-value'),
+            whrValue: document.getElementById('whr-value'),
+            bmiCategory: document.getElementById('bmi-category'),
+            whrCategory: document.getElementById('whr-category'),
+            exerciseRec: document.getElementById('exercise-recommendations'),
+            dietRec: document.getElementById('diet-recommendations'),
+            loading: document.getElementById('loading'),
+            report: document.getElementById('report')
+        };
+
+        // 提前创建图表上下文
+        const chartCtx = document.getElementById('radarChart').getContext('2d');
+        let radarChart = null;
+
+        // 预定义最大值用于标准化
+        const maxValues = {
+            height: 200,
+            weight: 100,
+            chest: 120,
+            waist: 100,
+            hip: 120,
+            age: 80
+        };
+
+        // 预定义分类规则
+        const bmiRules = [
+            { max: 18.5, category: '偏瘦', color: '#3498db' },
+            { max: 24, category: '正常', color: '#2ecc71' },
+            { max: 28, category: '超重', color: '#f39c12' },
+            { max: Infinity, category: '肥胖', color: '#e74c3c' }
+        ];
+
+        const whrRules = [
+            { max: 0.85, category: '低风险', color: '#2ecc71' },
+            { max: 0.9, category: '中风险', color: '#f39c12' },
+            { max: Infinity, category: '高风险', color: '#e74c3c' }
+        ];
+
+        // 预定义建议模板
+        const recommendations = {
+            bmi: {
+                underweight: {
+                    exercise: [
+                        '进行力量训练，增加肌肉质量',
+                        '每周3-4次中等强度有氧运动'
+                    ],
+                    diet: [
+                        '增加热量摄入，特别是优质蛋白质',
+                        '多吃坚果、鳄梨等高热量健康食物'
+                    ]
+                },
+                normal: {
+                    exercise: [
+                        '保持每周至少150分钟中等强度有氧运动',
+                        '每周2-3次力量训练'
+                    ],
+                    diet: [
+                        '均衡饮食，多吃蔬菜水果',
+                        '控制精制糖和饱和脂肪摄入'
+                    ]
+                },
+                overweight: {
+                    exercise: [
+                        '增加运动量，每周至少300分钟中等强度运动',
+                        '结合有氧和力量训练'
+                    ],
+                    diet: [
+                        '控制总热量摄入',
+                        '减少高糖高脂食物，增加膳食纤维'
+                    ]
+                },
+                obese: {
+                    exercise: [
+                        '在医生指导下开始运动计划',
+                        '从低强度运动开始，逐步增加'
+                    ],
+                    diet: [
+                        '寻求专业营养师指导',
+                        '控制饮食，减少高热量食物'
+                    ]
+                }
+            },
+            whr: {
+                high: {
+                    exercise: [
+                        '增加核心肌群训练',
+                        '进行高强度间歇训练(HIIT)'
+                    ],
+                    diet: [
+                        '减少内脏脂肪，控制酒精和精制糖',
+                        '增加omega-3脂肪酸摄入'
+                    ]
+                }
+            },
+            age: {
+                over40: {
+                    exercise: [
+                        '增加灵活性训练如瑜伽或太极',
+                        '关注骨密度，进行适当负重训练'
+                    ],
+                    diet: [
+                        '确保足够的钙和维生素D摄入',
+                        '增加抗氧化物质丰富的食物'
+                    ]
+                }
+            }
+        };
+
+        // 优化后的评估函数
+        document.getElementById('evaluate-btn').addEventListener('click',  function() {
+            // 显示加载状态
+            reportElements.loading.style.display  = 'block';
+
+            // 使用setTimeout让UI有机会更新加载状态
+            setTimeout(function() {
+                // 获取用户输入
+                const inputs = {
+                    height: parseFloat(document.getElementById('height').value),
+                    weight: parseFloat(document.getElementById('weight').value),
+                    chest: parseFloat(document.getElementById('chest').value),
+                    waist: parseFloat(document.getElementById('waist').value),
+                    hip: parseFloat(document.getElementById('hip').value),
+                    age: parseFloat(document.getElementById('age').value)
+                };
+
+                // 计算健康指标
+                const results = {
+                    bmi: calculateBMI(inputs.height,  inputs.weight),
+                    whr: calculateWHR(inputs.waist,  inputs.hip)
+                };
+
+                // 显示报告
+                displayReport(inputs, results);
+
+                // 生成雷达图
+                createRadarChart(inputs);
+
+                // 生成建议
+                generateRecommendations(results.bmi,  results.whr,  inputs.age);
+
+                // 隐藏加载状态，显示报告
+                reportElements.loading.style.display  = 'none';
+                reportElements.report.style.display  = 'block';
+
+            }, 10); // 最小延迟，确保UI更新
+        });
+
+        // 优化计算函数
+        function calculateBMI(height, weight) {
+            return (weight / Math.pow(height  / 100, 2)).toFixed(1);
+        }
+
+        function calculateWHR(waist, hip) {
+            return (waist / hip).toFixed(2);
+        }
+
+        // 优化显示报告
+        function displayReport(inputs, results) {
+            reportElements.bmiValue.textContent  = results.bmi;
+            reportElements.whrValue.textContent  = results.whr;
+
+            // 使用预定义规则分类
+            const bmiCategory = getCategory(parseFloat(results.bmi),  bmiRules);
+            reportElements.bmiCategory.textContent  = bmiCategory.category;
+            reportElements.bmiCategory.style.color  = bmiCategory.color;
+
+            const whrCategory = getCategory(parseFloat(results.whr),  whrRules);
+            reportElements.whrCategory.textContent  = whrCategory.category;
+            reportElements.whrCategory.style.color  = whrCategory.color;
+        }
+
+        // 通用分类函数
+        function getCategory(value, rules) {
+            for (let i = 0; i < rules.length;  i++) {
+                if (value < rules[i].max) {
+                    return rules[i];
+                }
+            }
+            return rules[rules.length - 1];
+        }
+
+        // 优化雷达图生成
+        function createRadarChart(inputs) {
+            // 标准化数据
+            const normalizedData = [
+                (inputs.height  / maxValues.height)  * 100,
+                (inputs.weight  / maxValues.weight)  * 100,
+                (inputs.chest  / maxValues.chest)  * 100,
+                (inputs.waist  / maxValues.waist)  * 100,
+                (inputs.hip  / maxValues.hip)  * 100,
+                (inputs.age  / maxValues.age)  * 100
+            ];
+
+            // 销毁旧图表
+            if (radarChart) {
+                radarChart.destroy();
+            }
+
+            // 创建新图表
+            radarChart = new Chart(chartCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['身高', '体重', '胸围', '腰围', '臀围', '年龄'],
+                    datasets: [{
+                        label: '您的数据',
+                        data: normalizedData,
+                        backgroundColor: 'rgba(44, 120, 115, 0.2)',
+                        borderColor: 'rgba(44, 120, 115, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(44, 120, 115, 1)',
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: {
+                            angleLines: { display: true },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    animation: {
+                        duration: 800 // 减少动画时间
+                    }
+                }
+            });
+        }
+
+        // 优化建议生成
+        function generateRecommendations(bmi, whr, age) {
+            // 清空现有建议
+            reportElements.exerciseRec.innerHTML  = '';
+            reportElements.dietRec.innerHTML  = '';
+
+            const bmiVal = parseFloat(bmi);
+            const whrVal = parseFloat(whr);
+
+            // 根据BMI选择建议模板
+            let bmiKey;
+            if (bmiVal < 18.5) bmiKey = 'underweight';
+            else if (bmiVal < 24) bmiKey = 'normal';
+            else if (bmiVal < 28) bmiKey = 'overweight';
+            else bmiKey = 'obese';
+
+            // 添加BMI相关建议
+            addRecommendations(recommendations.bmi[bmiKey].exercise,  reportElements.exerciseRec);
+            addRecommendations(recommendations.bmi[bmiKey].diet,  reportElements.dietRec);
+
+            // 添加高腰臀比建议
+            if (whrVal > 0.85) {
+                addRecommendations(recommendations.whr.high.exercise,  reportElements.exerciseRec);
+                addRecommendations(recommendations.whr.high.diet,  reportElements.dietRec);
+            }
+
+            // 添加年龄相关建议
+            if (age > 40) {
+                addRecommendations(recommendations.age.over40.exercise,  reportElements.exerciseRec);
+                addRecommendations(recommendations.age.over40.diet,  reportElements.dietRec);
+            }
+        }
+
+        // 优化添加建议
+        function addRecommendations(items, container) {
+            // 使用文档片段减少重排
+            const fragment = document.createDocumentFragment();
+
+            items.forEach(text  => {
+                const li = document.createElement('li');
+                li.textContent  = text;
+                fragment.appendChild(li);
+            });
+
+            container.appendChild(fragment);
+        }
+    </script>
+</body>
+</html>

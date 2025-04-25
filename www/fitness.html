@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能健康管理系统 Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        :root {
+            --primary: #4285F4;
+            --primary-light: #E8F0FE;
+            --secondary: #34A853;
+            --secondary-light: #E6F4EA;
+            --warning: #FBBC05;
+            --warning-light: #FEF7E0;
+            --danger: #EA4335;
+            --danger-light: #FCE8E6;
+            --light: #F8F9FA;
+            --dark: #202124;
+            --gray: #5F6368;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 2.5rem;
+            text-align: center;
+            border-radius: 12px 12px 0 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--warning), var(--danger));
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+        }
+        h2 {
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #eee;
+            font-size: 1.6rem;
+        }
+        h3 {
+            color: var(--dark);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.8rem;
+        }
+        .form-group {
+            margin-bottom: 1.8rem;
+            position: relative;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.6rem;
+            font-weight: 600;
+            color: var(--gray);
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.9rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.2);
+        }
+        .btn {
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            display: block;
+            margin: 3rem auto;
+            width: 240px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+            opacity: 0.95;
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .result-section {
+            display: none;
+            animation: fadeIn 0.6s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .chart-container {
+            margin: 2.5rem 0;
+            height: 350px;
+            position: relative;
+        }
+        .health-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.8rem;
+            margin: 2.5rem 0;
+        }
+        .status-card {
+            padding: 1.8rem;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+            border-left: 6px solid var(--primary);
+        }
+        .status-card:hover {
+            transform: translateY(-5px);
+        }
+        .status-card h3 {
+            color: var(--primary);
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+        }
+        .status-card h3 i {
+            margin-right: 0.6rem;
+            font-size: 1.4rem;
+        }
+        .status-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .status-description {
+            font-size: 1rem;
+            color: var(--gray);
+        }
+        .advice-section {
+            background: var(--light);
+            padding: 1.8rem;
+            border-radius: 10px;
+            margin: 2rem 0;
+            border-left: 6px solid var(--primary);
+        }
+        .advice-section.nutrition {
+            background: var(--secondary-light);
+            border-left-color: var(--secondary);
+        }
+        .advice-section.notes {
+            background: var(--warning-light);
+            border-left-color: var(--warning);
+        }
+        .advice-section.warning {
+            background: var(--danger-light);
+            border-left-color: var(--danger);
+        }
+        .advice-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .advice-item {
+            background: white;
+            padding: 1.2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .advice-item h4 {
+            color: var(--primary);
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+        }
+        .advice-item h4 i {
+            margin-right: 0.5rem;
+        }
+        .progress-section {
+            margin: 2.5rem 0;
+        }
+        .progress-container {
+            width: 100%;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            height: 12px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            width: 0;
+            transition: width 1s ease-in-out;
+        }
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+        .tab-container {
+            margin: 2rem 0;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 1.5rem;
+        }
+        .tab {
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 600;
+            color: var(--gray);
+        }
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .exercise-plan {
+            margin: 1.5rem 0;
+        }
+        .exercise-day {
+            margin-bottom: 2rem;
+        }
+        .exercise-day h4 {
+            color: var(--secondary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px dashed #ddd;
+        }
+        .exercise-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--primary);
+            transition: transform 0.3s ease;
+        }
+        .exercise-item:hover {
+            transform: translateX(5px);
+        }
+        .exercise-item h5 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        .exercise-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .exercise-detail {
+            background: var(--light);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        .nutrition-plan {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .meal-card {
+            background: white;
+            padding: 1.2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .meal-card h4 {
+            color: var(--secondary);
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+        }
+        .meal-card h4 i {
+            margin-right: 0.5rem;
+        }
+        .meal-item {
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        .meal-item-name {
+            font-weight: 500;
+        }
+        .meal-item-amount {
+            color: var(--gray);
+        }
+        .print-btn {
+            background: var(--warning);
+            color: var(--dark);
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        .print-btn:hover {
+            background: #f8b500;
+            transform: translateY(-2px);
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+            body {
+                padding: 0;
+                background: white;
+            }
+            .card {
+                box-shadow: none;
+                padding: 0;
+                margin-bottom: 1.5rem;
+            }
+            .result-section {
+                display: block !important;
+            }
+        }
+        @media (max-width: 768px) {
+            .form-grid, .health-status, .advice-grid, .nutrition-plan {
+                grid-template-columns: 1fr;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>智能健康管理系统 Pro</h1>
+            <p class="subtitle">全面健康评估与个性化运动营养方案</p>
+        </header>
+
+        <div class="card no-print">
+            <h2>个人信息</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">姓名</label>
+                    <input type="text" id="name" placeholder="请输入您的姓名" required>
+                </div>
+                <div class="form-group">
+                    <label for="gender">性别</label>
+                    <select id="gender" required>
+                        <option value="">请选择性别</option>
+                        <option value="male">男性</option>
+                        <option value="female">女性</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="age">年龄</label>
+                    <input type="number" id="age" placeholder="请输入年龄" min="10" max="100" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="card no-print">
+            <h2>身体数据</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="height">身高 (cm)</label>
+                    <input type="number" id="height" placeholder="请输入身高" min="100" max="250" required>
+                </div>
+                <div class="form-group">
+                    <label for="weight">体重 (kg)</label>
+                    <input type="number" id="weight" placeholder="请输入体重" min="30" max="200" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label for="waist">腰围 (cm)</label>
+                    <input type="number" id="waist" placeholder="可选" min="50" max="150">
+                </div>
+                <div class="form-group">
+                    <label for="hip">臀围 (cm)</label>
+                    <input type="number" id="hip" placeholder="可选" min="60" max="150">
+                </div>
+            </div>
+        </div>
+
+        <div class="card no-print">
+            <h2>健康状况与目标</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="activity">日常活动水平</label>
+                    <select id="activity" required>
+                        <option value="">请选择活动水平</option>
+                        <option value="sedentary">久坐少动 (几乎不运动)</option>
+                        <option value="light">轻度活动 (每周1-3次轻度运动)</option>
+                        <option value="moderate">中度活跃 (每周3-5次中等强度运动)</option>
+                        <option value="active">非常活跃 (每周6-7次高强度运动)</option>
+                        <option value="athlete">运动员级别 (每天高强度训练)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="goal">健康目标</label>
+                    <select id="goal" required>
+                        <option value="">请选择健康目标</option>
+                        <option value="weight-loss">减脂减重</option>
+                        <option value="muscle-gain">增肌塑形</option>
+                        <option value="fitness">保持健康</option>
+                        <option value="endurance">提高耐力</option>
+                        <option value="recovery">伤病恢复</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="injuries">伤病史 (可选)</label>
+                    <input type="text" id="injuries" placeholder="如膝盖损伤、腰椎问题等">
+                </div>
+                <div class="form-group">
+                    <label for="conditions">慢性疾病 (可选)</label>
+                    <input type="text" id="conditions" placeholder="如高血压、糖尿病、心脏病等">
+                </div>
+            </div>
+        </div>
+
+        <button class="btn no-print" id="analyze-btn">生成健康报告</button>
+
+        <div class="card result-section" id="result-section">
+            <div class="no-print" style="text-align: right;">
+                <button class="print-btn" onclick="window.print()">
+                    <i>🖨️</i> 打印报告
+                </button>
+            </div>
+
+            <h2>您的个性化健康报告</h2>
+            <p style="color: var(--gray); margin-bottom: 1.5rem;">生成日期: <span id="report-date"></span></p>
+
+            <div class="progress-section no-print">
+                <h3>健康评估进度</h3>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                <div class="progress-labels">
+                    <span>0%</span>
+                    <span>100%</span>
+                </div>
+            </div>
+
+            <div class="health-status">
+                <div class="status-card bmi-status">
+                    <h3><i>📊</i> BMI指数</h3>
+                    <div class="status-value" id="bmi-value">-</div>
+                    <div class="status-description" id="bmi-category">-</div>
+                </div>
+
+                <div class="status-card">
+                    <h3><i>⚖️</i> 体重对比</h3>
+                    <div class="status-value" id="weight-diff">-</div>
+                    <div class="status-description" id="ideal-weight">标准体重: - kg</div>
+                </div>
+
+                <div class="status-card">
+                    <h3><i>📐</i> 腰臀比</h3>
+                    <div class="status-value" id="whr-value">-</div>
+                    <div class="status-description" id="whr-category">-</div>
+                </div>
+
+                <div class="status-card">
+                    <h3><i>🔥</i> 基础代谢</h3>
+                    <div class="status-value" id="bmr-value">-</div>
+                    <div class="status-description">千卡/天</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="health-chart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="nutrition-chart"></canvas>
+            </div>
+
+            <div class="tab-container">
+                <div class="tabs">
+                    <div class="tab active" data-tab="exercise">运动处方</div>
+                    <div class="tab" data-tab="nutrition">营养计划</div>
+                    <div class="tab" data-tab="progress">进度建议</div>
+                </div>
+
+                <div class="tab-content active" id="exercise-tab">
+                    <div class="advice-section">
+                        <h3><i>🏋️</i> 综合运动建议</h3>
+                        <div id="exercise-summary"></div>
+
+                        <div class="exercise-plan">
+                            <h4>一周运动计划</h4>
+                            <div id="weekly-exercise"></div>
+                        </div>
+                    </div>
+
+                    <div class="advice-section nutrition">
+                        <h3><i>🍎</i> 运动营养补充建议</h3>
+                        <div id="exercise-nutrition"></div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="nutrition-tab">
+                    <div class="advice-section">
+                        <h3><i>🍽️</i> 每日营养目标</h3>
+                        <div id="nutrition-goals"></div>
+
+                        <div class="nutrition-plan">
+                            <div class="meal-card">
+                                <h4><i>🌅</i> 早餐建议</h4>
+                                <div id="breakfast-items"></div>
+                            </div>
+                            <div class="meal-card">
+                                <h4><i>☀️</i> 午餐建议</h4>
+                                <div id="lunch-items"></div>
+                            </div>
+                            <div class="meal-card">
+                                <h4><i>🌙</i> 晚餐建议</h4>
+                                <div id="dinner-items"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="advice-section">
+                        <h3><i>💧</i> 水分摄入建议</h3>
+                        <div id="water-intake"></div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="progress-tab">
+                    <div class="advice-section">
+                        <h3><i>📈</i> 健康进度跟踪</h3>
+                        <div id="progress-tracking"></div>
+                    </div>
+
+                    <div class="advice-section">
+                        <h3><i>🔄</i> 阶段性调整建议</h3>
+                        <div id="progress-adjustments"></div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="progress-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="advice-section notes">
+                <h3><i>⚠️</i> 健康注意事项</h3>
+                <div id="health-notes"></div>
+            </div>
+
+            <div class="advice-section warning" id="risk-factors-container" style="display: none;">
+                <h3><i>❗</i> 高风险因素</h3>
+                <div id="risk-factors"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置报告日期
+            const now = new Date();
+            document.getElementById('report-date').textContent = now.toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            });
+
+            // 标签切换功能
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // 移除所有active类
+                    tabs.forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                    // 添加active类到当前标签
+                    tab.classList.add('active');
+                    const tabId = tab.getAttribute('data-tab');
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+                });
+            });
+
+            // 分析按钮点击事件
+            const analyzeBtn = document.getElementById('analyze-btn');
+            analyzeBtn.addEventListener('click', generateHealthReport);
+
+            // 模拟进度条加载
+            function simulateProgress() {
+                const progressBar = document.getElementById('progress-bar');
+                let width = 0;
+                const interval = setInterval(() => {
+                    if (width >= 100) {
+                        clearInterval(interval);
+                    } else {
+                        width += 5;
+                        progressBar.style.width = width + '%';
+                    }
+                }, 50);
+            }
+
+            function generateHealthReport() {
+                // 显示加载动画
+                simulateProgress();
+
+                // 收集用户数据
+                const user = collectUserData();
+
+                // 验证输入
+                if (!validateInputs(user)) return;
+
+                // 计算健康指标
+                const metrics = calculateHealthMetrics(user);
+
+                // 生成建议
+                const advice = generateHealthAdvice(user, metrics);
+
+                // 显示结果
+                displayResults(user, metrics, advice);
+
+                // 显示结果部分
+                document.getElementById('result-section').style.display = 'block';
+
+                // 滚动到结果
+                setTimeout(() => {
+                    document.getElementById('result-section').scrollIntoView({ behavior: 'smooth' });
+                }, 500);
+            }
+
+            function collectUserData() {
+                return {
+                    name: document.getElementById('name').value,
+                    gender: document.getElementById('gender').value,
+                    age: parseInt(document.getElementById('age').value),
+                    height: parseInt(document.getElementById('height').value),
+                    weight: parseFloat(document.getElementById('weight').value),
+                    waist: parseInt(document.getElementById('waist').value) || 0,
+                    hip: parseInt(document.getElementById('hip').value) || 0,
+                    activity: document.getElementById('activity').value,
+                    goal: document.getElementById('goal').value,
+                    injuries: document.getElementById('injuries').value.toLowerCase(),
+                    conditions: document.getElementById('conditions').value.toLowerCase()
+                };
+            }
+
+            function validateInputs(user) {
+                if (!user.name || !user.gender || !user.age || !user.height ||
+                    !user.weight || !user.activity || !user.goal) {
+                    alert('请填写所有必填字段！');
+                    return false;
+                }
+                return true;
+            }
+
+            function calculateHealthMetrics(user) {
+                // 计算BMI
+                const heightInMeter = user.height / 100;
+                const bmi = user.weight / (heightInMeter * heightInMeter);
+
+                // 计算标准体重 (Broca公式)
+                let idealWeight;
+                if (user.gender === 'male') {
+                    idealWeight = (user.height - 80) * 0.7;
+                } else {
+                    idealWeight = (user.height - 70) * 0.6;
+                }
+
+                // 计算腰臀比
+                const whr = user.waist > 0 && user.hip > 0 ? (user.waist / user.hip).toFixed(2) : null;
+
+                // 计算基础代谢率 (Mifflin-St Jeor公式)
+                let bmr;
+                if (user.gender === 'male') {
+                    bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age + 5;
+                } else {
+                    bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age - 161;
+                }
+
+                // 活动系数
+                let activityFactor;
+                switch(user.activity) {
+                    case 'sedentary': activityFactor = 1.2; break;
+                    case 'light': activityFactor = 1.375; break;
+                    case 'moderate': activityFactor = 1.55; break;
+                    case 'active': activityFactor = 1.725; break;
+                    case 'athlete': activityFactor = 1.9; break;
+                    default: activityFactor = 1.2;
+                }
+
+                // 每日总能量消耗
+                const tdee = Math.round(bmr * activityFactor);
+
+                return {
+                    bmi: bmi.toFixed(1),
+                    bmiCategory: getBMICategory(bmi),
+                    idealWeight: idealWeight.toFixed(1),
+                    weightDiff: (user.weight - idealWeight).toFixed(1),
+                    whr: whr,
+                    whrCategory: whr ? getWHRCategory(whr, user.gender) : null,
+                    bmr: Math.round(bmr),
+                    tdee: tdee,
+                    bodyFat: estimateBodyFat(user),
+                    riskFactors: assessRiskFactors(user, bmi, whr)
+                };
+            }
+
+            function getBMICategory(bmi) {
+                if (bmi < 18.5) return {
+                    text: '体重过轻',
+                    color: '#2196F3',
+                    description: '您的体重低于健康范围，可能需要增加体重以改善健康状况。'
+                };
+                if (bmi < 24) return {
+                    text: '正常范围',
+                    color: '#4CAF50',
+                    description: '您的体重在健康范围内，继续保持良好的生活习惯。'
+                };
+                if (bmi < 28) return {
+                    text: '超重',
+                    color: '#FFC107',
+                    description: '您的体重超出健康范围，建议适当减重以降低健康风险。'
+                };
+                return {
+                    text: '肥胖',
+                    color: '#F44336',
+                    description: '您的体重显著超出健康范围，建议在专业人士指导下制定减重计划。'
+                };
+            }
+
+            function getWHRCategory(whr, gender) {
+                if (gender === 'male') {
+                    if (whr > 0.9) return {
+                        text: '高风险',
+                        color: '#F44336',
+                        description: '腰臀比过高，腹部脂肪堆积显著增加心血管疾病风险。'
+                    };
+                    if (whr > 0.85) return {
+                        text: '偏高',
+                        color: '#FFC107',
+                        description: '腰臀比略高，需要注意腹部脂肪的控制。'
+                    };
+                    return {
+                        text: '正常',
+                        color: '#4CAF50',
+                        description: '腰臀比在健康范围内，继续保持。'
+                    };
+                } else {
+                    if (whr > 0.85) return {
+                        text: '高风险',
+                        color: '#F44336',
+                        description: '腰臀比过高，腹部脂肪堆积显著增加心血管疾病风险。'
+                    };
+                    if (whr > 0.8) return {
+                        text: '偏高',
+                        color: '#FFC107',
+                        description: '腰臀比略高，需要注意腹部脂肪的控制。'
+                    };
+                    return {
+                        text: '正常',
+                        color: '#4CAF50',
+                        description: '腰臀比在健康范围内，继续保持。'
+                    };
+                }
+            }
+
+            function estimateBodyFat(user) {
+                // 简单的体脂率估算（不同方法）
+                let bodyFat;
+
+                // 方法1：基于BMI的估算
+                if (user.gender === 'male') {
+                    bodyFat = (1.20 * user.weight / ((user.height/100)**2)) + (0.23 * user.age) - 16.2;
+                } else {
+                    bodyFat = (1.20 * user.weight / ((user.height/100)**2)) + (0.23 * user.age) - 5.4;
+                }
+
+                // 方法2：美国海军方法（需要颈围，这里简化）
+                // 返回一个范围值
+                return {
+                    value: bodyFat.toFixed(1),
+                    category: getBodyFatCategory(bodyFat, user.gender, user.age)
+                };
+            }
+
+            function getBodyFatCategory(bodyFat, gender, age) {
+                if (gender === 'male') {
+                    if (age < 30) {
+                        if (bodyFat < 8) return '极低';
+                        if (bodyFat < 14) return '优秀';
+                        if (bodyFat < 18) return '良好';
+                        if (bodyFat < 24) return '一般';
+                        return '过高';
+                    } else if (age < 50) {
+                        if (bodyFat < 10) return '极低';
+                        if (bodyFat < 16) return '优秀';
+                        if (bodyFat < 20) return '良好';
+                        if (bodyFat < 26) return '一般';
+                        return '过高';
+                    } else {
+                        if (bodyFat < 12) return '极低';
+                        if (bodyFat < 18) return '优秀';
+                        if (bodyFat < 22) return '良好';
+                        if (bodyFat < 28) return '一般';
+                        return '过高';
+                    }
+                } else {
+                    if (age < 30) {
+                        if (bodyFat < 18) return '极低';
+                        if (bodyFat < 22) return '优秀';
+                        if (bodyFat < 26) return '良好';
+                        if (bodyFat < 32) return '一般';
+                        return '过高';
+                    } else if (age < 50) {
+                        if (bodyFat < 20) return '极低';
+                        if (bodyFat < 24) return '优秀';
+                        if (bodyFat < 28) return '良好';
+                        if (bodyFat < 34) return '一般';
+                        return '过高';
+                    } else {
+                        if (bodyFat < 22) return '极低';
+                        if (bodyFat < 26) return '优秀';
+                        if (bodyFat < 30) return '良好';
+                        if (bodyFat < 36) return '一般';
+                        return '过高';
+                    }
+                }
+            }
+
+            function assessRiskFactors(user, bmi, whr) {
+                const risks = [];
+
+                // BMI相关风险
+                if (bmi < 18.5) {
+                    risks.push({
+                        factor: '体重过轻',
+                        description: '可能增加骨质疏松、免疫力下降等风险',
+                        severity: '中等'
+                    });
+                } else if (bmi >= 25) {
+                    risks.push({
+                        factor: bmi >= 30 ? '肥胖' : '超重',
+                        description: '增加心血管疾病、糖尿病等慢性病风险',
+                        severity: bmi >= 30 ? '高' : '中等'
+                    });
+                }
+
+                // 腰臀比风险
+                if (whr) {
+                    const whrRisk = user.gender === 'male' ? whr > 0.9 : whr > 0.85;
+                    if (whrRisk) {
+                        risks.push({
+                            factor: '腰臀比过高',
+                            description: '腹部肥胖显著增加代谢综合征风险',
+                            severity: '高'
+                        });
+                    }
+                }
+
+                // 慢性病风险
+                if (user.conditions.includes('高血压')) {
+                    risks.push({
+                        factor: '高血压',
+                        description: '需要定期监测血压，避免剧烈运动',
+                        severity: '高'
+                    });
+                }
+
+                if (user.conditions.includes('糖尿病')) {
+                    risks.push({
+                        factor: '糖尿病',
+                        description: '需要控制血糖，注意运动前后的血糖监测',
+                        severity: '高'
+                    });
+                }
+
+                if (user.conditions.includes('心脏病')) {
+                    risks.push({
+                        factor: '心脏病',
+                        description: '需要在医生指导下进行运动',
+                        severity: '极高'
+                    });
+                }
+
+                // 伤病史风险
+                if (user.injuries.includes('膝盖') || user.injuries.includes('膝关节')) {
+                    risks.push({
+                        factor: '膝关节问题',
+                        description: '避免高冲击运动，选择低冲击替代方案',
+                        severity: '中等'
+                    });
+                }
+
+                if (user.injuries.includes('腰椎') || user.injuries.includes('腰部')) {
+                    risks.push({
+                        factor: '腰部问题',
+                        description: '避免重量过大的硬拉和深蹲，加强核心训练',
+                        severity: '中等'
+                    });
+                }
+
+                return risks;
+            }
+
+            function generateHealthAdvice(user, metrics) {
+                // 运动建议
+                const exerciseAdvice = generateExerciseAdvice(user, metrics);
+
+                // 营养建议
+                const nutritionAdvice = generateNutritionAdvice(user, metrics);
+
+                // 进度跟踪建议
+                const progressAdvice = generateProgressAdvice(user, metrics);
+
+                // 健康注意事项
+                const healthNotes = generateHealthNotes(user, metrics);
+
+                return {
+                    exercise: exerciseAdvice,
+                    nutrition: nutritionAdvice,
+                    progress: progressAdvice,
+                    notes: healthNotes
+                };
+            }
+
+            function generateExerciseAdvice(user, metrics) {
+                const bmiCat = metrics.bmiCategory.text;
+                const exerciseSummary = [];
+                const weeklyExercise = [];
+                const exerciseNutrition = [];
+
+                // 根据目标生成运动建议
+                switch(user.goal) {
+                    case 'weight-loss':
+                        exerciseSummary.push(`
+                            <p><strong>主要目标：</strong>减脂减重，每周目标减重0.5-1kg</p>
+                            <p><strong>核心策略：</strong>创造热量缺口，保持肌肉量</p>
+                        `);
+
+                        // 有氧运动建议
+                        const cardioAdvice = {
+                            type: '有氧运动',
+                            frequency: '5-7天/周',
+                            duration: '30-60分钟/次',
+                            intensity: '中等(60-70%最大心率)',
+                            examples: '快走、游泳、骑自行车、椭圆机'
+                        };
+
+                        if (bmiCat === '肥胖') {
+                            cardioAdvice.notes = '选择低冲击运动，如游泳、椭圆机，减少关节压力';
+                            cardioAdvice.examples = '游泳、水中健身、椭圆机、骑自行车';
+                        }
+
+                        // 力量训练建议
+                        const strengthAdvice = {
+                            type: '力量训练',
+                            frequency: '2-3天/周',
+                            duration: '30-45分钟/次',
+                            intensity: '中等(60-70%1RM)',
+                            examples: '全身复合动作，如深蹲、俯卧撑、划船',
+                            notes: '每组8-12次，3-4组，保持肌肉量'
+                        };
+
+                        // HIIT建议（适合中级以上）
+                        if (user.activity === 'moderate' || user.activity === 'active' || user.activity === 'athlete') {
+                            const hiitAdvice = {
+                                type: '高强度间歇训练(HIIT)',
+                                frequency: '1-2天/周',
+                                duration: '20-30分钟/次',
+                                intensity: '高强度(80-90%最大心率)',
+                                examples: '冲刺跑、战绳、Burpees',
+                                notes: '运动:休息=1:2比例，如30秒高强度+60秒休息'
+                            };
+
+                            weeklyExercise.push(createExercisePlan([
+                                cardioAdvice, strengthAdvice, hiitAdvice
+                            ]));
+                        } else {
+                            weeklyExercise.push(createExercisePlan([
+                                cardioAdvice, strengthAdvice
+                            ]));
+                        }
+
+                        // 运动营养建议
+                        exerciseNutrition.push(`
+                            <p><strong>运动前：</strong>适量碳水化合物(如香蕉)提供能量</p>
+                            <p><strong>运动后：</strong>蛋白质+碳水化合物(3:1比例)促进恢复</p>
+                            <p><strong>水分补充：</strong>每15-20分钟150-300ml水</p>
+                        `);
+                        break;
+
+                    case 'muscle-gain':
+                        exerciseSummary.push(`
+                            <p><strong>主要目标：</strong>增肌塑形，每周目标增重0.25-0.5kg(肌肉为主)</p>
+                            <p><strong>核心策略：</strong>渐进超负荷训练，热量盈余</p>
+                        `);
+
+                        // 力量训练建议
+                        const muscleStrengthAdvice = {
+                            type: '力量训练',
+                            frequency: '3-5天/周',
+                            duration: '45-60分钟/次',
+                            intensity: '中高(70-85%1RM)',
+                            examples: '复合动作为主：深蹲、硬拉、卧推、引体向上',
+                            notes: '每组6-12次，3-5组，每周逐渐增加重量'
+                        };
+
+                        // 分化训练方案
+                        const splitRoutine = [];
+                        if (user.activity === 'beginner' || user.activity === 'light') {
+                            splitRoutine.push({
+                                day: '周一/周四',
+                                focus: '全身训练',
+                                exercises: [
+                                    '深蹲 3x8-12',
+                                    '卧推 3x8-12',
+                                    '划船 3x8-12',
+                                    '肩推 3x8-12',
+                                    '平板支撑 3x30秒'
+                                ]
+                            });
+                            splitRoutine.push({
+                                day: '周三/周六',
+                                focus: '全身训练',
+                                exercises: [
+                                    '硬拉 3x6-8',
+                                    '引体向上 3x最大次数',
+                                    '腿举 3x10-12',
+                                    '二头弯举 3x10-12',
+                                    '卷腹 3x15-20'
+                                ]
+                            });
+                        } else {
+                            splitRoutine.push({
+                                day: '周一',
+                                focus: '胸/三头肌',
+                                exercises: [
+                                    '平板卧推 4x6-8',
+                                    '上斜哑铃卧推 3x8-10',
+                                    '双杠臂屈伸 3x8-10',
+                                    '绳索下压 3x10-12',
+                                    '仰卧臂屈伸 3x10-12'
+                                ]
+                            });
+                            splitRoutine.push({
+                                day: '周二',
+                                focus: '背/二头肌',
+                                exercises: [
+                                    '硬拉 4x5',
+                                    '引体向上 4x最大次数',
+                                    '杠铃划船 3x8-10',
+                                    '哑铃弯举 3x10-12',
+                                    '锤式弯举 3x10-12'
+                                ]
+                            });
+                            splitRoutine.push({
+                                day: '周四',
+                                focus: '腿/核心',
+                                exercises: [
+                                    '深蹲 4x6-8',
+                                    '腿举 3x8-10',
+                                    '罗马尼亚硬拉 3x8-10',
+                                    '腿弯举 3x10-12',
+                                    '平板支撑 3x45秒'
+                                ]
+                            });
+                            splitRoutine.push({
+                                day: '周五',
+                                focus: '肩/腹肌',
+                                exercises: [
+                                    '站姿杠铃推举 4x6-8',
+                                    '侧平举 3x10-12',
+                                    '面拉 3x12-15',
+                                    '悬垂举腿 3x12-15',
+                                    '俄罗斯转体 3x15每侧'
+                                ]
+                            });
+                        }
+
+                        weeklyExercise.push(createSplitRoutine(splitRoutine));
+
+                        // 有氧运动建议
+                        const muscleCardioAdvice = {
+                            type: '有氧运动',
+                            frequency: '1-2天/周',
+                            duration: '20-30分钟/次',
+                            intensity: '低(50-60%最大心率)',
+                            examples: '慢跑、骑自行车、游泳',
+                            notes: '保持低强度以避免影响肌肉增长'
+                        };
+
+                        weeklyExercise.push(createExercisePlan([muscleCardioAdvice]));
+
+                        // 运动营养建议
+                        exerciseNutrition.push(`
+                            <p><strong>训练前：</strong>碳水化合物+少量蛋白质(如燕麦+蛋白粉)</p>
+                            <p><strong>训练后：</strong>快速吸收蛋白质(乳清蛋白)+高GI碳水</p>
+                            <p><strong>睡前：</strong>缓释蛋白质(酪蛋白)促进夜间恢复</p>
+                        `);
+                        break;
+
+                    // 其他目标案例...
+                    default:
+                        exerciseSummary.push(`<p>根据您的目标提供个性化运动建议</p>`);
+                }
+
+                // 根据伤病史调整
+                if (user.injuries.includes('膝盖') || user.injuries.includes('膝关节')) {
+                    exerciseSummary.push(`
+                        <p class="warning-note"><strong>膝关节保护：</strong>避免跑步、跳跃等高冲击运动，选择游泳、骑自行车等低冲击替代方案</p>
+                    `);
+                }
+
+                if (user.injuries.includes('腰椎') || user.injuries.includes('腰部')) {
+                    exerciseSummary.push(`
+                        <p class="warning-note"><strong>腰部保护：</strong>避免重量过大的硬拉和深蹲，加强核心肌群训练</p>
+                    `);
+                }
+
+                return {
+                    summary: exerciseSummary.join(''),
+                    weeklyPlan: weeklyExercise.join(''),
+                    nutrition: exerciseNutrition.join('')
+                };
+            }
+
+            function createExercisePlan(advices) {
+                let html = '<div class="advice-grid">';
+
+                advices.forEach(advice => {
+                    html += `
+                        <div class="advice-item">
+                            <h4><i>${getExerciseIcon(advice.type)}</i> ${advice.type}</h4>
+                            <p><strong>频率：</strong>${advice.frequency}</p>
+                            <p><strong>时长：</strong>${advice.duration}</p>
+                            <p><strong>强度：</strong>${advice.intensity}</p>
+                            <p><strong>示例：</strong>${advice.examples}</p>
+                            ${advice.notes ? `<p><strong>注意：</strong>${advice.notes}</p>` : ''}
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+                return html;
+            }
+
+            function createSplitRoutine(splitRoutine) {
+                let html = '';
+
+                splitRoutine.forEach(day => {
+                    html += `
+                        <div class="exercise-day">
+                            <h4>${day.day} - ${day.focus}</h4>
+                            <ul style="list-style-type: none; padding-left: 0;">
+                                ${day.exercises.map(ex => `<li>• ${ex}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                });
+
+                return html;
+            }
+
+            function getExerciseIcon(type) {
+                const icons = {
+                    '有氧运动': '🏃',
+                    '力量训练': '🏋️',
+                    '高强度间歇训练': '⚡',
+                    '柔韧性训练': '🧘',
+                    '核心训练': '🔄'
+                };
+                return icons[type] || '🏅';
+            }
+
+            function generateNutritionAdvice(user, metrics) {
+                const nutritionGoals = [];
+                const mealPlans = [];
+                const waterIntake = [];
+
+                // 计算每日营养需求
+                const proteinNeeds = user.goal === 'muscle-gain' ?
+                    Math.round(user.weight * 1.8) : Math.round(user.weight * 1.4);
+                const carbNeeds = Math.round((metrics.tdee * 0.45) / 4); // 45%热量来自碳水
+                const fatNeeds = Math.round((metrics.tdee * 0.3) / 9); // 30%热量来自脂肪
+
+                // 根据目标调整热量
+                let calorieTarget = metrics.tdee;
+                if (user.goal === 'weight-loss') calorieTarget -= 300;
+                if (user.goal === 'muscle-gain') calorieTarget += 300;
+
+                nutritionGoals.push(`
+                    <p><strong>每日热量目标：</strong>${calorieTarget}千卡</p>
+                    <p><strong>蛋白质：</strong>${proteinNeeds}g (${Math.round(proteinNeeds*4/calorieTarget*100)}%热量)</p>
+                    <p><strong>碳水化合物：</strong>${carbNeeds}g (45%热量)</p>
+                    <p><strong>脂肪：</strong>${fatNeeds}g (30%热量)</p>
+                    <p><strong>膳食纤维：</strong>25-30g</p>
+                `);
+
+                // 生成餐食建议
+                mealPlans.push(generateMealPlan(user, metrics));
+
+                // 水分建议
+                const waterNeeds = Math.round(user.weight * 35); // 35ml/kg
+                waterIntake.push(`
+                    <p><strong>每日水分摄入：</strong>${waterNeeds}ml (约${Math.round(waterNeeds/250)}杯)</p>
+                    <p><strong>运动补水：</strong>每15-20分钟补充150-300ml水</p>
+                    <p><strong>水分来源：</strong>水、淡茶、无糖饮料为主，限制含糖饮料</p>
+                `);
+
+                return {
+                    goals: nutritionGoals.join(''),
+                    meals: mealPlans.join(''),
+                    water: waterIntake.join('')
+                };
+            }
+
+            function generateMealPlan(user, metrics) {
+                // 根据目标生成不同的餐食建议
+                let breakfast, lunch, dinner;
+
+                if (user.goal === 'weight-loss') {
+                    breakfast = [
+                        { name: '燕麦片', amount: '40g' },
+                        { name: '鸡蛋', amount: '2个' },
+                        { name: '牛奶', amount: '200ml' },
+                        { name: '坚果', amount: '10g' }
+                    ];
+
+                    lunch = [
+                        { name: '糙米饭', amount: '100g' },
+                        { name: '鸡胸肉', amount: '150g' },
+                        { name: '蔬菜', amount: '200g' },
+                        { name: '橄榄油', amount: '5g' }
+                    ];
+
+                    dinner = [
+                        { name: '红薯', amount: '150g' },
+                        { name: '三文鱼', amount: '120g' },
+                        { name: '蔬菜沙拉', amount: '200g' },
+                        { name: '牛油果', amount: '30g' }
+                    ];
+                } else if (user.goal === 'muscle-gain') {
+                    breakfast = [
+                        { name: '全麦面包', amount: '2片' },
+                        { name: '鸡蛋', amount: '3个' },
+                        { name: '奶酪', amount: '30g' },
+                        { name: '花生酱', amount: '15g' },
+                        { name: '香蕉', amount: '1根' }
+                    ];
+
+                    lunch = [
+                        { name: '糙米饭', amount: '150g' },
+                        { name: '牛肉', amount: '200g' },
+                        { name: '蔬菜', amount: '200g' },
+                        { name: '橄榄油', amount: '10g' }
+                    ];
+
+                    dinner = [
+                        { name: '藜麦', amount: '100g' },
+                        { name: '鸡腿肉(去皮)', amount: '180g' },
+                        { name: '蔬菜', amount: '200g' },
+                        { name: '坚果', amount: '15g' }
+                    ];
+                } else {
+                    // 默认保持健康的餐食
+                    breakfast = [
+                        { name: '燕麦片', amount: '50g' },
+                        { name: '鸡蛋', amount: '2个' },
+                        { name: '牛奶', amount: '200ml' },
+                        { name: '水果', amount: '1份' }
+                    ];
+
+                    lunch = [
+                        { name: '杂粮饭', amount: '100g' },
+                        { name: '鱼肉', amount: '150g' },
+                        { name: '蔬菜', amount: '200g' },
+                        { name: '橄榄油', amount: '5g' }
+                    ];
+
+                    dinner = [
+                        { name: '全麦意面', amount: '80g' },
+                        { name: '鸡胸肉', amount: '120g' },
+                        { name: '蔬菜沙拉', amount: '200g' },
+                        { name: '坚果', amount: '10g' }
+                    ];
+                }
+
+                // 生成HTML
+                let html = '';
+
+                // 早餐
+                html += '<div id="breakfast-items">';
+                breakfast.forEach(item => {
+                    html += `
+                        <div class="meal-item">
+                            <span class="meal-item-name">${item.name}</span>
+                            <span class="meal-item-amount">${item.amount}</span>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+
+                // 午餐
+                html += '<div id="lunch-items">';
+                lunch.forEach(item => {
+                    html += `
+                        <div class="meal-item">
+                            <span class="meal-item-name">${item.name}</span>
+                            <span class="meal-item-amount">${item.amount}</span>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+
+                // 晚餐
+                html += '<div id="dinner-items">';
+                dinner.forEach(item => {
+                    html += `
+                        <div class="meal-item">
+                            <span class="meal-item-name">${item.name}</span>
+                            <span class="meal-item-amount">${item.amount}</span>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+
+                return html;
+            }
+
+            function generateProgressAdvice(user, metrics) {
+                const tracking = [];
+                const adjustments = [];
+
+                // 进度跟踪建议
+                tracking.push(`
+                    <p><strong>体重记录：</strong>每周同一时间测量1-2次，记录变化趋势</p>
+                    <p><strong>体围测量：</strong>每月测量腰围、臀围、臂围等</p>
+                    <p><strong>运动表现：</strong>记录力量训练的负重和次数变化</p>
+                    <p><strong>主观感受：</strong>记录能量水平、睡眠质量和运动恢复情况</p>
+                `);
+
+                // 阶段性调整建议
+                adjustments.push(`
+                    <p><strong>4周评估：</strong>根据进展调整运动强度和饮食计划</p>
+                    <p><strong>平台期处理：</strong>改变训练变量(组数、次数、休息时间)</p>
+                    <p><strong>过度训练识别：</strong>注意疲劳积累、睡眠障碍等信号</p>
+                `);
+
+                return {
+                    tracking: tracking.join(''),
+                    adjustments: adjustments.join('')
+                };
+            }
+
+            function generateHealthNotes(user, metrics) {
+                const notes = [];
+
+                // 一般健康建议
+                notes.push(`
+                    <p><strong>睡眠：</strong>保证7-9小时高质量睡眠，促进恢复</p>
+                    <p><strong>压力管理：</strong>通过冥想、深呼吸等方式控制压力水平</p>
+                `);
+
+                // 根据BMI的建议
+                const bmiCat = metrics.bmiCategory.text;
+                if (bmiCat === '肥胖') {
+                    notes.push(`
+                        <p><strong>减重建议：</strong>循序渐进，每周减重不超过1kg</p>
+                        <p><strong>运动选择：</strong>从低冲击运动开始，逐步增加强度</p>
+                    `);
+                } else if (bmiCat === '体重过轻') {
+                    notes.push(`
+                        <p><strong>增重建议：</strong>通过力量训练和热量盈余健康增重</p>
+                    `);
+                }
+
+                // 根据慢性病的建议
+                if (user.conditions.includes('高血压')) {
+                    notes.push(`
+                        <p><strong>血压管理：</strong>限制钠盐摄入，监测血压变化</p>
+                        <p><strong>运动注意：</strong>避免屏气用力，选择中等强度有氧</p>
+                    `);
+                }
+
+                if (user.conditions.includes('糖尿病')) {
+                    notes.push(`
+                        <p><strong>血糖管理：</strong>运动前后监测血糖，预防低血糖</p>
+                        <p><strong>饮食注意：</strong>选择低GI食物，控制碳水摄入时间</p>
+                    `);
+                }
+
+                // 根据伤病史的建议
+                if (user.injuries.includes('膝盖') || user.injuries.includes('膝关节')) {
+                    notes.push(`
+                        <p><strong>膝关节保护：</strong>加强股四头肌和臀肌力量，改善动作模式</p>
+                    `);
+                }
+
+                if (user.injuries.includes('腰椎') || user.injuries.includes('腰部')) {
+                    notes.push(`
+                        <p><strong>腰部保护：</strong>避免长时间弯腰，加强核心稳定性</p>
+                    `);
+                }
+
+                return notes.join('');
+            }
+
+            function displayResults(user, metrics, advice) {
+                // 显示基本信息
+                document.getElementById('bmi-value').textContent = metrics.bmi;
+                document.getElementById('bmi-value').style.color = metrics.bmiCategory.color;
+                document.getElementById('bmi-category').textContent =
+                    `${metrics.bmiCategory.text} - ${metrics.bmiCategory.description}`;
+
+                // 显示体重对比
+                document.getElementById('ideal-weight').textContent = `标准体重: ${metrics.idealWeight} kg`;
+                const weightDiff = metrics.weightDiff;
+                let weightStatus, weightColor;
+                if (weightDiff > 0) {
+                    weightStatus = `超出标准 ${weightDiff} kg`;
+                    weightColor = '#F44336';
+                } else {
+                    weightStatus = `低于标准 ${Math.abs(weightDiff)} kg`;
+                    weightColor = '#2196F3';
+                }
+                document.getElementById('weight-diff').textContent = weightStatus;
+                document.getElementById('weight-diff').style.color = weightColor;
+
+                // 显示腰臀比
+                if (metrics.whr) {
+                    document.getElementById('whr-value').textContent = metrics.whr;
+                    document.getElementById('whr-value').style.color = metrics.whrCategory.color;
+                    document.getElementById('whr-category').textContent =
+                        `${metrics.whrCategory.text} - ${metrics.whrCategory.description}`;
+                } else {
+                    document.getElementById('whr-value').textContent = '未测量';
+                    document.getElementById('whr-category').textContent = '请测量腰围和臀围获取数据';
+                }
+
+                // 显示基础代谢
+                document.getElementById('bmr-value').textContent = metrics.bmr;
+
+                // 显示运动建议
+                document.getElementById('exercise-summary').innerHTML = advice.exercise.summary;
+                document.getElementById('weekly-exercise').innerHTML = advice.exercise.weeklyPlan;
+                document.getElementById('exercise-nutrition').innerHTML = advice.exercise.nutrition;
+
+                // 显示营养建议
+                document.getElementById('nutrition-goals').innerHTML = advice.nutrition.goals;
+                document.getElementById('water-intake').innerHTML = advice.nutrition.water;
+
+                // 显示进度建议
+                document.getElementById('progress-tracking').innerHTML = advice.progress.tracking;
+                document.getElementById('progress-adjustments').innerHTML = advice.progress.adjustments;
+
+                // 显示健康注意事项
+                document.getElementById('health-notes').innerHTML = advice.notes;
+
+                // 显示高风险因素（如果有）
+                if (metrics.riskFactors.length > 0) {
+                    document.getElementById('risk-factors-container').style.display = 'block';
+                    let riskHtml = '';
+                    metrics.riskFactors.forEach(risk => {
+                        riskHtml += `
+                            <div class="advice-item" style="margin-bottom: 0.8rem;">
+                                <h4 style="color: ${risk.severity === '高' || risk.severity === '极高' ? '#F44336' : '#FFC107'}">
+                                    ${risk.factor} (${risk.severity}风险)
+                                </h4>
+                                <p>${risk.description}</p>
+                            </div>
+                        `;
+                    });
+                    document.getElementById('risk-factors').innerHTML = riskHtml;
+                }
+
+                // 创建图表
+                createHealthChart(user, metrics);
+                createNutritionChart(user, metrics);
+                createProgressChart(user, metrics);
+            }
+
+            function createHealthChart(user, metrics) {
+                const ctx = document.getElementById('health-chart').getContext('2d');
+
+                // 销毁旧图表（如果存在）
+                if (window.healthChart) {
+                    window.healthChart.destroy();
+                }
+
+                const weightDiff = parseFloat(metrics.weightDiff);
+
+                window.healthChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['您的体重', '标准体重', 'BMI指数', '体重差距'],
+                        datasets: [{
+                            label: '健康指标',
+                            data: [
+                                user.weight,
+                                parseFloat(metrics.idealWeight),
+                                parseFloat(metrics.bmi),
+                                Math.abs(weightDiff)
+                            ],
+                            backgroundColor: [
+                                'rgba(66, 133, 244, 0.7)',
+                                'rgba(52, 168, 83, 0.7)',
+                                'rgba(255, 193, 7, 0.7)',
+                                weightDiff > 0 ? 'rgba(234, 67, 53, 0.7)' : 'rgba(66, 133, 244, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(66, 133, 244, 1)',
+                                'rgba(52, 168, 83, 1)',
+                                'rgba(255, 193, 7, 1)',
+                                weightDiff > 0 ? 'rgba(234, 67, 53, 1)' : 'rgba(66, 133, 244, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '数值'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: '健康指标对比',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                }
+                            },
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed.y !== null) {
+                                            if (context.label === 'BMI指数') {
+                                                label += context.parsed.y + ' (' + metrics.bmiCategory.text + ')';
+                                            } else if (context.label === '体重差距') {
+                                                label += context.parsed.y + ' kg (' + (weightDiff > 0 ? '超出' : '低于') + '标准)';
+                                            } else {
+                                                label += context.parsed.y + (context.label.includes('体重') ? ' kg' : '');
+                                            }
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function createNutritionChart(user, metrics) {
+                const ctx = document.getElementById('nutrition-chart').getContext('2d');
+
+                // 计算营养素比例
+                const protein = user.goal === 'muscle-gain' ? user.weight * 1.8 * 4 : user.weight * 1.4 * 4;
+                const carbs = metrics.tdee * 0.45;
+                const fat = metrics.tdee * 0.3;
+                const remaining = metrics.tdee - protein - carbs - fat;
+
+                if (window.nutritionChart) {
+                    window.nutritionChart.destroy();
+                }
+
+                window.nutritionChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['蛋白质', '碳水化合物', '脂肪', '其他'],
+                        datasets: [{
+                            data: [protein, carbs, fat, remaining],
+                            backgroundColor: [
+                                'rgba(66, 133, 244, 0.7)',
+                                'rgba(52, 168, 83, 0.7)',
+                                'rgba(255, 193, 7, 0.7)',
+                                'rgba(234, 67, 53, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(66, 133, 244, 1)',
+                                'rgba(52, 168, 83, 1)',
+                                'rgba(255, 193, 7, 1)',
+                                'rgba(234, 67, 53, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: '每日营养素分配',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                }
+                            },
+                            legend: {
+                                position: 'right',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        const percentage = Math.round(value / metrics.tdee * 100);
+                                        return `${label}: ${value.toFixed(0)}千卡 (${percentage}%)`;
+                                    }
+                                }
+                            },
+                            datalabels: {
+                                formatter: (value) => {
+                                    return Math.round(value / metrics.tdee * 100) + '%';
+                                },
+                                color: '#fff',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    },
+                    plugins: [ChartDataLabels]
+                });
+            }
+
+            function createProgressChart(user, metrics) {
+                const ctx = document.getElementById('progress-chart').getContext('2d');
+
+                // 模拟12周进度数据
+                const weeks = Array.from({length: 12}, (_, i) => `第${i+1}周`);
+                let weightData;
+
+                if (user.goal === 'weight-loss') {
+                    const startWeight = user.weight;
+                    const targetLoss = 0.5; // 每周减0.5kg
+                    weightData = weeks.map((_, i) => startWeight - (i * targetLoss));
+                } else if (user.goal === 'muscle-gain') {
+                    const startWeight = user.weight;
+                    const targetGain = 0.25; // 每周增0.25kg
+                    weightData = weeks.map((_, i) => startWeight + (i * targetGain));
+                } else {
+                    const startWeight = user.weight;
+                    weightData = weeks.map(() => startWeight);
+                }
+
+                if (window.progressChart) {
+                    window.progressChart.destroy();
+                }
+
+                window.progressChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: weeks,
+                        datasets: [{
+                            label: '体重变化 (kg)',
+                            data: weightData,
+                            borderColor: 'rgba(66, 133, 244, 1)',
+                            backgroundColor: 'rgba(66, 133, 244, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                title: {
+                                    display: true,
+                                    text: '体重 (kg)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '周数'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: '12周体重变化预测',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} kg`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
